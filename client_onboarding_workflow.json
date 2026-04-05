@@ -1,0 +1,482 @@
+{
+  "name": "Client Onboarding Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client-onboarding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-0001",
+      "name": "Webhook — Receive Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "client-onboarding"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "clientName",
+              "value": "={{ $json.body.fields[0].value }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.body.fields[1].value }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.body.fields[2].value }}"
+            },
+            {
+              "name": "businessName",
+              "value": "={{ $json.body.fields[3].value }}"
+            },
+            {
+              "name": "service",
+              "value": "={{ $json.body.fields[4].value }}"
+            },
+            {
+              "name": "notes",
+              "value": "={{ $json.body.fields[6].value }}"
+            },
+            {
+              "name": "dateOnboarded",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "assignedTo",
+              "value": "Sarah M"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-0002",
+      "name": "Set — Map Form Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "application": "YOUR_AIRTABLE_BASE_ID",
+        "table": "Clients",
+        "fields": {
+          "fieldMappingValues": [
+            {
+              "fieldName": "Client Name",
+              "fieldValue": "={{ $json.clientName }}"
+            },
+            {
+              "fieldName": "Email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldName": "Phone",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldName": "Business Name",
+              "fieldValue": "={{ $json.businessName }}"
+            },
+            {
+              "fieldName": "Service",
+              "fieldValue": "={{ $json.service }}"
+            },
+            {
+              "fieldName": "Status",
+              "fieldValue": "Awaiting Documents"
+            },
+            {
+              "fieldName": "Documents Received",
+              "fieldValue": false
+            },
+            {
+              "fieldName": "Date Onboarded",
+              "fieldValue": "={{ $json.dateOnboarded }}"
+            },
+            {
+              "fieldName": "Assigned To",
+              "fieldValue": "={{ $json.assignedTo }}"
+            },
+            {
+              "fieldName": "Notes",
+              "fieldValue": "={{ $json.notes }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-0003",
+      "name": "Airtable — Create Client Record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Set — Map Form Fields').item.json.email }}",
+        "subject": "=Welcome to [Your Business Name], {{ $('Set — Map Form Fields').item.json.clientName }}",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $('Set — Map Form Fields').item.json.clientName }},</p><p>Thank you for reaching out — we're excited to work with you.</p><p>Here's what happens next:</p><ol><li>We'll review your enquiry within 1 business day</li><li>We'll send you a document checklist for <strong>{{ $('Set — Map Form Fields').item.json.service }}</strong></li><li>Once we receive your documents, we'll schedule your onboarding call</li></ol><p>In the meantime, if you have any questions just reply to this email and we'll help straight away.</p><br><p>Warm regards,<br>[Your Name]<br>[Business Name]<br>[Phone Number]</p>",
+        "options": {}
+      },
+      "id": "node-0004",
+      "name": "Gmail — Send Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "team": "YOUR_CLICKUP_TEAM_ID",
+        "space": "YOUR_CLICKUP_SPACE_ID",
+        "folderless": true,
+        "list": "YOUR_CLICKUP_LIST_ID",
+        "name": "=Send document checklist to {{ $('Set — Map Form Fields').item.json.clientName }}",
+        "additionalFields": {
+          "description": "=Send the standard document checklist to {{ $('Set — Map Form Fields').item.json.clientName }} at {{ $('Set — Map Form Fields').item.json.email }}. Service: {{ $('Set — Map Form Fields').item.json.service }}. Follow up within 48 hours if no response.",
+          "priority": 2,
+          "due_date": "={{ $now.plus({days: 2}).toMillis() }}",
+          "due_date_time": true
+        }
+      },
+      "id": "node-0005",
+      "name": "ClickUp — Task 1 Send Checklist",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "team": "YOUR_CLICKUP_TEAM_ID",
+        "space": "YOUR_CLICKUP_SPACE_ID",
+        "folderless": true,
+        "list": "YOUR_CLICKUP_LIST_ID",
+        "name": "=Follow up on missing documents — {{ $('Set — Map Form Fields').item.json.clientName }}",
+        "additionalFields": {
+          "description": "=Check if documents have been received from {{ $('Set — Map Form Fields').item.json.clientName }}. If not received, call or send a follow-up email. Email: {{ $('Set — Map Form Fields').item.json.email }}. Phone: {{ $('Set — Map Form Fields').item.json.phone }}.",
+          "priority": 2,
+          "due_date": "={{ $now.plus({days: 5}).toMillis() }}",
+          "due_date_time": true
+        }
+      },
+      "id": "node-0006",
+      "name": "ClickUp — Task 2 Follow Up Docs",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1120, 320]
+    },
+    {
+      "parameters": {
+        "team": "YOUR_CLICKUP_TEAM_ID",
+        "space": "YOUR_CLICKUP_SPACE_ID",
+        "folderless": true,
+        "list": "YOUR_CLICKUP_LIST_ID",
+        "name": "=Schedule onboarding call with {{ $('Set — Map Form Fields').item.json.clientName }}",
+        "additionalFields": {
+          "description": "=Book a 30-minute onboarding call with {{ $('Set — Map Form Fields').item.json.clientName }} once all documents are received. Email: {{ $('Set — Map Form Fields').item.json.email }}. Phone: {{ $('Set — Map Form Fields').item.json.phone }}.",
+          "priority": 3,
+          "due_date": "={{ $now.plus({days: 7}).toMillis() }}",
+          "due_date_time": true
+        }
+      },
+      "id": "node-0007",
+      "name": "ClickUp — Task 3 Schedule Call",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1120, 440]
+    },
+    {
+      "parameters": {
+        "team": "YOUR_CLICKUP_TEAM_ID",
+        "space": "YOUR_CLICKUP_SPACE_ID",
+        "folderless": true,
+        "list": "YOUR_CLICKUP_LIST_ID",
+        "name": "=Complete system setup for {{ $('Set — Map Form Fields').item.json.clientName }}",
+        "additionalFields": {
+          "description": "=Set up {{ $('Set — Map Form Fields').item.json.clientName }} in the internal system. Service: {{ $('Set — Map Form Fields').item.json.service }}. Business: {{ $('Set — Map Form Fields').item.json.businessName }}.",
+          "priority": 3,
+          "due_date": "={{ $now.plus({days: 10}).toMillis() }}",
+          "due_date_time": true
+        }
+      },
+      "id": "node-0008",
+      "name": "ClickUp — Task 4 System Setup",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1120, 560]
+    },
+    {
+      "parameters": {
+        "team": "YOUR_CLICKUP_TEAM_ID",
+        "space": "YOUR_CLICKUP_SPACE_ID",
+        "folderless": true,
+        "list": "YOUR_CLICKUP_LIST_ID",
+        "name": "=Send welcome pack to {{ $('Set — Map Form Fields').item.json.clientName }}",
+        "additionalFields": {
+          "description": "=Send the digital welcome pack PDF to {{ $('Set — Map Form Fields').item.json.clientName }} at {{ $('Set — Map Form Fields').item.json.email }}. Include service guide for {{ $('Set — Map Form Fields').item.json.service }}.",
+          "priority": 4,
+          "due_date": "={{ $now.plus({days: 10}).toMillis() }}",
+          "due_date_time": true
+        }
+      },
+      "id": "node-0009",
+      "name": "ClickUp — Task 5 Welcome Pack",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [1120, 680]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#new-clients",
+          "mode": "name"
+        },
+        "text": "=*New Client Onboarded*\n\n*Name:* {{ $('Set — Map Form Fields').item.json.clientName }}\n*Business:* {{ $('Set — Map Form Fields').item.json.businessName }}\n*Service:* {{ $('Set — Map Form Fields').item.json.service }}\n*Email:* {{ $('Set — Map Form Fields').item.json.email }}\n*Phone:* {{ $('Set — Map Form Fields').item.json.phone }}\n*Assigned To:* {{ $('Set — Map Form Fields').item.json.assignedTo }}\n*Date:* {{ $('Set — Map Form Fields').item.json.dateOnboarded }}\n\n*Status:* Awaiting Documents\n*Tasks created in ClickUp.*",
+        "otherOptions": {}
+      },
+      "id": "node-0010",
+      "name": "Slack — Notify Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "amount": 48,
+        "unit": "hours"
+      },
+      "id": "node-0011",
+      "name": "Wait — 48 Hours",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "webhookId": "wait-48-hours"
+    },
+    {
+      "parameters": {
+        "application": "YOUR_AIRTABLE_BASE_ID",
+        "table": "Clients",
+        "id": "={{ $('Airtable — Create Client Record').item.json.id }}",
+        "options": {}
+      },
+      "id": "node-0012",
+      "name": "Airtable — Get Client Record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json['Documents Received'] }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-0013",
+      "name": "IF — Documents Received?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Set — Map Form Fields').item.json.email }}",
+        "subject": "=Quick reminder — we're waiting on your documents",
+        "emailType": "html",
+        "message": "=<p>Hi {{ $('Set — Map Form Fields').item.json.clientName }},</p><p>Just a friendly reminder that we're still waiting on your documents to get your <strong>{{ $('Set — Map Form Fields').item.json.service }}</strong> setup underway.</p><p>If you have any questions about what's needed, just reply to this email and we'll help you straight away.</p><p>Looking forward to working with you.</p><br><p>Warm regards,<br>[Your Name]<br>[Business Name]<br>[Phone Number]</p>",
+        "options": {}
+      },
+      "id": "node-0014",
+      "name": "Gmail — Send Reminder Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [2220, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Client onboarded successfully\", \"client\": \"{{ $('Set — Map Form Fields').item.json.clientName }}\" }",
+        "options": {}
+      },
+      "id": "node-0015",
+      "name": "Respond — Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 480]
+    }
+  ],
+  "connections": {
+    "Webhook — Receive Form": {
+      "main": [
+        [
+          {
+            "node": "Set — Map Form Fields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond — Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set — Map Form Fields": {
+      "main": [
+        [
+          {
+            "node": "Airtable — Create Client Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable — Create Client Record": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "ClickUp — Task 1 Send Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp — Task 1 Send Checklist": {
+      "main": [
+        [
+          {
+            "node": "ClickUp — Task 2 Follow Up Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp — Task 2 Follow Up Docs": {
+      "main": [
+        [
+          {
+            "node": "ClickUp — Task 3 Schedule Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp — Task 3 Schedule Call": {
+      "main": [
+        [
+          {
+            "node": "ClickUp — Task 4 System Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp — Task 4 System Setup": {
+      "main": [
+        [
+          {
+            "node": "ClickUp — Task 5 Welcome Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClickUp — Task 5 Welcome Pack": {
+      "main": [
+        [
+          {
+            "node": "Slack — Notify Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack — Notify Team": {
+      "main": [
+        [
+          {
+            "node": "Wait — 48 Hours",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait — 48 Hours": {
+      "main": [
+        [
+          {
+            "node": "Airtable — Get Client Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable — Get Client Record": {
+      "main": [
+        [
+          {
+            "node": "IF — Documents Received?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Documents Received?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Gmail — Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["portfolio", "onboarding", "CRM", "automation", "professional-services"],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-05T00:00:00.000Z",
+  "versionId": "1"
+}
